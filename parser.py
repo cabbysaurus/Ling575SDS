@@ -17,7 +17,7 @@ def output_tags(t, uttid, sentiment_list):
             texts = {}
             for text in user.findall("text"):
                 texts[text.attrib['type']] = text.text
-            print "%s|%s|%s|%s|%s" % (uttid, tag.get("id"), tag.get("tag"), texts.get("asr"), texts.get("transcription"))
+            return "%s|%s|%s|%s|%s" % (uttid, tag.get("id"), tag.get("tag"), str(texts.get("asr")).strip(), str(texts.get("transcription")).strip())
         else:
             pass
             # print node_id, tag
@@ -41,23 +41,15 @@ def main():
                 else:
                     pass
         with open(raw_data, "r") as raw_f:
-            t = etree.parse(raw_f)
-            for key in tags.iterkeys():
-                output_tags(t, key, tags[key])
-#    with open(
-#    with open(raw_data, "r") as raw_f:
-#        t = etree.parse(raw_f)
-#        for ft in ("consensus-test.txt", "consensus-train.txt"):
-#            sentiment_filepath = os.path.join(sentiment_tag_dir, ft)
-#            with open(sentiment_filepath, "r") as sentiment_f:
-#                for line in sentiment_f.readlines():
-#                    try:
-#                        (uttid, tag) = line.strip().split(" ")
-#                        find_text(t, uttid, tag)
-#                    except KeyboardInterrupt:
-#                        return
-#                    except:
-#                        pass
-#
+            filepath = {
+                "consensus-test.txt": "test",
+                "consensus-train.txt": "train",
+            }.get(ft)
+            with open(filepath, "w") as out_f:
+                t = etree.parse(raw_f)
+                for key in tags.iterkeys():
+                    out_f.write(output_tags(t, key, tags[key]))
+                    out_f.write("\n")
+
 if __name__ == "__main__":
     main()
