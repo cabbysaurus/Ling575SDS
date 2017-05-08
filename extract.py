@@ -28,7 +28,8 @@ class Processor(object):
         last_system = None
         if len(system) != 0:
             (key, last_system) = system.popitem(last=True)
-        print """%s_%s,"%s","%s","%s" """ % (task_id, number, last_system, user.get("asr"), user.get("transcription")) 
+        print """%s_%s,"%s","%s","%s" """ % (task_id, number, str(last_system).strip(), str(user.get("asr")).strip(),
+                                             str(user.get("transcription")).strip()) 
              
     def output(self):
         print "id,question,response_asr,response_transcription"
