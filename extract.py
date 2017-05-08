@@ -35,7 +35,7 @@ class Processor(object):
             system = OrderedDict()
             users = OrderedDict()
             attrib = task.attrib
-            task_id = "%s_%s_%s_%s" % (attrib.get("year"), attrib.get("month"), attrib.get("day"), attrib.get("pin"))
+            task_id = "_".join([attrib.get("year"), attrib.get("month"), attrib.get("day"), attrib.get("system"), attrib.get("pin")])
             print "id,question,response_asr,response_transcription"
             for turn in task.iter("turn"): 
                 if turn.attrib["speaker"] == "system":
