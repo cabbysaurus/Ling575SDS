@@ -31,12 +31,12 @@ class Processor(object):
         print """%s_%s,"%s","%s","%s" """ % (task_id, number, last_system, user.get("asr"), user.get("transcription")) 
              
     def output(self):
+        print "id,question,response_asr,response_transcription"
         for task in itertools.chain(self._t_2000.iter("task"), self._t_2001.iter("task")):
             system = OrderedDict()
             users = OrderedDict()
             attrib = task.attrib
             task_id = "_".join([attrib.get("year"), attrib.get("month"), attrib.get("day"), attrib.get("system"), attrib.get("pin")])
-            print "id,question,response_asr,response_transcription"
             for turn in task.iter("turn"): 
                 if turn.attrib["speaker"] == "system":
                     system = self.get_turn_text(turn)
