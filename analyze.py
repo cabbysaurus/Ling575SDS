@@ -26,7 +26,7 @@ class Analyze(object):
 
     def summarize(self):
         print "Total: ", len(self._tasks)
-        heading = ["REPE", "SIGH", "SENT"]
+        heading = ["REPE", "SIGH", "SENT", "ASR"]
         print "  SYS  TOTAL",
         for head in heading:
             print "%12s" % (head),
@@ -38,6 +38,7 @@ class Analyze(object):
                 out = {
                     "REPE": self._repeated_by_system,
                     "SIGH": self._sigh_by_system,
+                    "ASR":  self._asr_by_system,
                     "SENT": self._sentiment_by_system,
                 }.get(att)(system, total)
                 print "%12s" % (out),
@@ -58,10 +59,19 @@ class Analyze(object):
                 count += 1
         return count
 
-    def _sentiment_by_system(self, system, count):
+    def _value_by_system(self, system, key):
         s = []
         for task in filter(lambda t: t.system == system, self._tasks.itervalues()):
-            s.append(task._compound)
+            s.append(getattr(task, key))
+        return s
+
+    def _asr_by_system(self, system, count):
+        s = self._value_by_system(system, "_asr_score")
+        ret = sum(s)/float(len(s))
+        return "%12s" % ("%.2f" % ret)
+
+    def _sentiment_by_system(self, system, count):
+        s = self._value_by_system(system, "_compound")
         ret = sum(s)/float(len(s))
         return "%12s" % ("%.2f" % ret)
 
@@ -107,6 +117,7 @@ class Task(object):
         self._have_repeated = False
         self._have_sigh = False
         self._compound = 0.0
+        self._asr_score = 0.0
 
     def append(self, row):
         self._sentences.append(Sentence(row))
@@ -116,7 +127,7 @@ class Task(object):
         return s.ratio()
 
     def _analyze_repeated_questions(self):
-        """Analyze for repeated questions."""
+        """Analyze for repeated questions. If similarity score > 0.9 then true."""
         for i in range(1, len(self._sentences)):
             score = self._similarity(self._sentences[i-1].system,
                                      self._sentences[i].system)
@@ -124,7 +135,18 @@ class Task(object):
                 self._have_repeated = True
                 break
 
+    def _analyze_asr(self):
+        """Compare the similarity of the transcribed_sanitized, and asr."""
+        scores = []
+        for i in range(len(self._sentences)):
+            score = self._similarity(self._sentences[i].transcribed_sanitized.lower(),
+                                     self._sentences[i].asr.lower())
+            scores.append(score)
+        self._asr_score = sum(scores)/float(len(scores))
+
     def _analyze_sentiment(self, parent):
+        """Look for [sigh] in the transcribed text. Calculate the "compound" sentiment
+           in the transcribed_sanitized text"""
         for s in self._sentences:
             if 'sigh' in s.filtered:
                 self._have_sigh = True
@@ -143,6 +165,7 @@ class Task(object):
     def analyze(self, parent):
         self._analyze_repeated_questions()
         self._analyze_sentiment(parent)
+        self._analyze_asr()
 
 def main(argv=sys.argv):
     filepath = "raw.csv"
