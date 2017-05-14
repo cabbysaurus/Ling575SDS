@@ -19,7 +19,7 @@ class Analyze(object):
         self.sid = SentimentIntensityAnalyzer()
 
     def add_row(self, row):
-        task_id = row[0].rsplit("_", 1)[0]
+        task_id = row['id'].rsplit("_", 1)[0]
         if task_id not in self._tasks:
             self._tasks[task_id] = Task(task_id)
         self._tasks[task_id].append(row)
@@ -83,10 +83,10 @@ class Analyze(object):
 
 class Sentence(object):
     def __init__(self, row):
-        self.id = row[0]
-        self.system = row[1]
-        self.asr = row[2]
-        self.transcribed = row[3]
+        self.id = row['id']
+        self.system = row['question']
+        self.asr = row['response_asr']
+        self.transcribed = row['response_transcription']
         self.filtered = []
         self._compound = 0.0
         self.transcribed_tokens = []
@@ -173,10 +173,7 @@ def main(argv=sys.argv):
         filepath = argv[1]
     a = Analyze()
     with open('raw.csv', 'rb') as csvfile:
-        raw_reader = csv.reader(csvfile)
-        for row in raw_reader:
-            # read the header
-            break
+        raw_reader = csv.DictReader(csvfile)
         for row in raw_reader:
             a.add_row(row)
     a.analyze()
