@@ -31,54 +31,66 @@ class Analyze(object):
         for head in heading:
             print "%12s" % (head),
         print ""
-        for system in sorted(self._systems, key=self._systems.get, reverse=True):
-            total = self._systems[system]
-            print "%5s: %5d" % (system, total),
-            for att in heading:
-                out = {
-                    "REPE": self._repeated_by_system,
-                    "SIGH": self._sigh_by_system,
-                    "ASR":  self._asr_by_system,
-                    "SENT": self._sentiment_by_system,
-                }.get(att)(system, total)
-                print "%12s" % (out),
-            print ""
+        for year in ("2000", "2001"):
+            print "Year: %s" % (year)
+            for system in sorted(self._systems, key=self._systems.get, reverse=True):
+                total = self._systems[system][year]
+                print "%5s: %5d" % (system, total),
+                for att in heading:
+                    out = {
+                        "REPE": self._repeated_by_system,
+                        "SIGH": self._sigh_by_system,
+                        "ASR":  self._asr_by_system,
+                        "SENT": self._sentiment_by_system,
+                    }.get(att)(system, total, year=year)
+                    print "%12s" % (out),
+                print ""
 
-    def _repeated_by_system(self, system, total):
-        count = self._by_system(system, "_have_repeated")
+    def _repeated_by_system(self, system, total, year=None):
+        count = self._by_system(system, "_have_repeated", year=year)
+        if total == 0 and count == 0:
+            return ""
         return "%5d (%.2f)" % (count, float(count)/float(total))
 
-    def _sigh_by_system(self, system, total):
-        count = self._by_system(system, "_have_sigh")
+    def _sigh_by_system(self, system, total, year=None):
+        count = self._by_system(system, "_have_sigh", year=year)
+        if total == 0 and count == 0:
+            return ""
         return "%5d (%.2f)" % (count, float(count)/float(total))
 
-    def _by_system(self, system, key):
+    def _by_system(self, system, key, year=None):
         count = 0
-        for task in filter(lambda t: t.system == system, self._tasks.itervalues()):
+        for task in filter(lambda t: t.system == system and t.year == year,
+                           self._tasks.itervalues()):
             if getattr(task, key):
                 count += 1
         return count
 
-    def _value_by_system(self, system, key):
+    def _value_by_system(self, system, key, year=None):
         s = []
-        for task in filter(lambda t: t.system == system, self._tasks.itervalues()):
+        for task in filter(lambda t: t.system == system and t.year == year,
+                           self._tasks.itervalues()):
             s.append(getattr(task, key))
         return s
 
-    def _asr_by_system(self, system, count):
-        s = self._value_by_system(system, "_asr_score")
+    def _asr_by_system(self, system, count, year=None):
+        s = self._value_by_system(system, "_asr_score", year=year)
+        if count == 0 and len(s) == 0:
+            return ""
         ret = sum(s)/float(len(s))
         return "%12s" % ("%.2f" % ret)
 
-    def _sentiment_by_system(self, system, count):
-        s = self._value_by_system(system, "_compound")
+    def _sentiment_by_system(self, system, count, year=None):
+        s = self._value_by_system(system, "_compound", year=year)
+        if count == 0 and len(s) == 0:
+            return ""
         ret = sum(s)/float(len(s))
         return "%12s" % ("%.2f" % ret)
 
     def analyze(self):
-        self._systems = defaultdict(int)
+        self._systems = defaultdict(lambda: defaultdict(int))
         for task in self._tasks.itervalues():
-            self._systems[task.system] += 1
+            self._systems[task.system][task.year] += 1
             task.analyze(self)
 
 class Sentence(object):
@@ -112,7 +124,9 @@ class Task(object):
     def __init__(self, task_id):
         self.id = task_id
         self._sentences = []
-        self.system = task_id.split("_")[-2]
+        task_id_chunks = task_id.split("_")
+        self.system = task_id_chunks[-2] 
+        self.year = task_id_chunks[0] 
             # attributes
         self._have_repeated = False
         self._have_sigh = False
