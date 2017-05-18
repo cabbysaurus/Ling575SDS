@@ -26,7 +26,7 @@ class Analyze(object):
 
     def summarize(self):
         print "Total: ", len(self._tasks)
-        heading = ["REPE", "SIGH", "SENT", "ASR", "TURNS"]
+        heading = ["REPE", "REPE2", "SIGH", "SENT", "ASR", "TURNS"]
         print "  SYS  TOTAL",
         for head in heading:
             print "%12s" % (head),
@@ -39,6 +39,7 @@ class Analyze(object):
                 for att in heading:
                     out = {
                         "REPE": self._repeated_by_system,
+                        "REPE2": self._repeated_by_system_two,
                         "SIGH": self._sigh_by_system,
                         "ASR":  self._asr_by_system,
                         "SENT": self._sentiment_by_system,
@@ -49,6 +50,12 @@ class Analyze(object):
 
     def _repeated_by_system(self, system, total, year=None):
         count = self._by_system(system, "_have_repeated", year=year)
+        if total == 0 and count == 0:
+            return ""
+        return "%5d (%.2f)" % (count, float(count)/float(total))
+
+    def _repeated_by_system_two(self, system, total, year=None):
+        count = self._by_system(system, "_have_repeated_two", year=year)
         if total == 0 and count == 0:
             return ""
         return "%5d (%.2f)" % (count, float(count)/float(total))
@@ -138,6 +145,7 @@ class Task(object):
         self.year = task_id_chunks[0] 
             # attributes
         self._have_repeated = False
+        self._have_repeated_two = False
         self._have_sigh = False
         self._compound = 0.0
         self._asr_score = 0.0
@@ -155,9 +163,14 @@ class Task(object):
         for i in range(1, len(self._sentences)):
             score = self._similarity(self._sentences[i-1].system,
                                      self._sentences[i].system)
-            if score >= 0.9:
+            if score >= 0.95:
                 self._have_repeated = True
-                break
+                if i >= 2:
+                    score_2 = self._similarity(self._sentences[i-2].system,
+                                             self._sentences[i].system)
+                    if score_2 >= 0.95:
+                        self._have_repeated_two = True
+                        break
 
     def _analyze_asr(self):
         """Compare the similarity of the transcribed_sanitized, and asr."""
