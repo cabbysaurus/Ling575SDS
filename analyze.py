@@ -26,7 +26,7 @@ class Analyze(object):
 
     def summarize(self):
         print "Total: ", len(self._tasks)
-        heading = ["REPE", "SIGH", "SENT", "ASR"]
+        heading = ["REPE", "SIGH", "SENT", "ASR", "TURNS"]
         print "  SYS  TOTAL",
         for head in heading:
             print "%12s" % (head),
@@ -42,6 +42,7 @@ class Analyze(object):
                         "SIGH": self._sigh_by_system,
                         "ASR":  self._asr_by_system,
                         "SENT": self._sentiment_by_system,
+                        "TURNS": self._turns_by_system,
                     }.get(att)(system, total, year=year)
                     print "%12s" % (out),
                 print ""
@@ -86,6 +87,14 @@ class Analyze(object):
             return ""
         ret = sum(s)/float(len(s))
         return "%12s" % ("%.2f" % ret)
+
+    def _turns_by_system(self, system, count, year=None):
+        """Calculate the average number of turns by system"""
+        s = self._value_by_system(system, "_turns", year=year)
+        if count == 0 and len(s) == 0:
+            return ""
+        ret = sum(s)/float(len(s))
+        return "%12s" % ("%d" % ret)
 
     def analyze(self):
         self._systems = defaultdict(lambda: defaultdict(int))
@@ -132,6 +141,7 @@ class Task(object):
         self._have_sigh = False
         self._compound = 0.0
         self._asr_score = 0.0
+        self._turns = 0
 
     def append(self, row):
         self._sentences.append(Sentence(row))
@@ -177,6 +187,7 @@ class Task(object):
             self._compound = 0.0
 
     def analyze(self, parent):
+        self._turns = len(self._sentences)
         self._analyze_repeated_questions()
         self._analyze_sentiment(parent)
         self._analyze_asr()
