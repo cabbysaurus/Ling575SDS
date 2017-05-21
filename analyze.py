@@ -26,7 +26,7 @@ class Analyze(object):
 
     def summarize(self):
         print "Total: ", len(self._tasks)
-        heading = ["REPE", "REPE2", "SIGH", "SENT", "ASR", "TURNS"]
+        heading = ["REPE", "REPE2", "SIGH", "ASR", "TURNS", "SENT_COMP", "SENT_POS", "SENT_NEG"]
         print "  SYS  TOTAL",
         for head in heading:
             print "%12s" % (head),
@@ -42,7 +42,9 @@ class Analyze(object):
                         "REPE2": self._repeated_by_system_two,
                         "SIGH": self._sigh_by_system,
                         "ASR":  self._asr_by_system,
-                        "SENT": self._sentiment_by_system,
+                        "SENT_COMP": self._sentiment_by_system,
+                        "SENT_POS": self._pos_by_system,
+                        "SENT_NEG": self._neg_by_system,
                         "TURNS": self._turns_by_system,
                     }.get(att)(system, total, year=year)
                     print "%12s" % (out),
@@ -95,6 +97,20 @@ class Analyze(object):
         ret = sum(s)/float(len(s))
         return "%12s" % ("%.2f" % ret)
 
+    def _pos_by_system(self, system, count, year=None):
+        s = self._value_by_system(system, "_pos", year=year)
+        if count == 0 and len(s) == 0:
+            return ""
+        ret = sum(s)/float(len(s))
+        return "%12s" % ("%.2f" % ret)
+
+    def _neg_by_system(self, system, count, year=None):
+        s = self._value_by_system(system, "_neg", year=year)
+        if count == 0 and len(s) == 0:
+            return ""
+        ret = sum(s)/float(len(s))
+        return "%12s" % ("%.2f" % ret)
+
     def _turns_by_system(self, system, count, year=None):
         """Calculate the average number of turns by system"""
         s = self._value_by_system(system, "_turns", year=year)
@@ -141,8 +157,8 @@ class Task(object):
         self.id = task_id
         self._sentences = []
         task_id_chunks = task_id.split("_")
-        self.system = task_id_chunks[-2] 
-        self.year = task_id_chunks[0] 
+        self.system = task_id_chunks[-2]
+        self.year = task_id_chunks[0]
             # attributes
         self._have_repeated = False
         self._have_repeated_two = False
@@ -188,16 +204,26 @@ class Task(object):
             if 'sigh' in s.filtered:
                 self._have_sigh = True
                 break
-        c = []
+
+        d = {
+            '_compound': [],
+            '_neg': [],
+            '_pos': [],
+        }
         for s in self._sentences:
             ss = parent.sid.polarity_scores(s.transcribed_sanitized)
             s._compound = ss.get('compound')
-            if s._compound != 0.0:
-                c.append(s._compound)
-        if len(c) > 0:
-            self._compound = sum(c)/float(len(c))
-        else:
-            self._compound = 0.0
+            for key in ('compound', 'pos', 'neg'):
+                v = ss.get(key)
+                k = "_" + key
+                setattr(s, k, v)
+                if v != 0.0:
+                    d[k].append(v)
+        for k in d.iterkeys():
+            if len(d[k]) > 0:
+                setattr(self, k, sum(d[k])/float(len(d[k])))
+            else:
+                setattr(self, k, 0.0)
 
     def analyze(self, parent):
         self._turns = len(self._sentences)
