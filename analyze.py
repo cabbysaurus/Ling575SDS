@@ -217,8 +217,7 @@ class Task(object):
                 v = ss.get(key)
                 k = "_" + key
                 setattr(s, k, v)
-                if v != 0.0:
-                    d[k].append(v)
+                d[k].append(v)
         for k in d.iterkeys():
             if len(d[k]) > 0:
                 setattr(self, k, sum(d[k])/float(len(d[k])))
