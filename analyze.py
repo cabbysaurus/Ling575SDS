@@ -14,6 +14,7 @@ from difflib import SequenceMatcher
 from nltk import word_tokenize
 
 class Analyze(object):
+    TEMPLATE = "%11s"
     def __init__(self):
         self._tasks = {}
         self.sid = SentimentIntensityAnalyzer()
@@ -25,11 +26,23 @@ class Analyze(object):
         self._tasks[task_id].append(row)
 
     def summarize(self):
+        func_map = {
+            "REPE": self._repeated_by_system,
+            "REPE2": self._repeated_by_system_two,
+            "SIGH": self._sigh_by_system,
+            "ASR":  self._asr_by_system,
+            "SENT_COMP": self._sentiment_by_system,
+            "SENT_POS": self._pos_by_system,
+            "SENT_NEG": self._neg_by_system,
+            "TURNS": self._turns_by_system,
+            "LEN_SYS": self._system_len_by_system,
+            "LEN_USR": self._usr_len_by_system,
+        }
         print "Total: ", len(self._tasks)
-        heading = ["REPE", "REPE2", "SIGH", "ASR", "TURNS", "SENT_COMP", "SENT_POS", "SENT_NEG"]
+        heading = sorted(func_map.iterkeys())
         print "  SYS  TOTAL",
         for head in heading:
-            print "%12s" % (head),
+            print self.TEMPLATE % (head),
         print ""
         for year in ("2000", "2001"):
             print "Year: %s" % (year)
@@ -37,30 +50,22 @@ class Analyze(object):
                 total = self._systems[system][year]
                 print "%5s: %5d" % (system, total),
                 for att in heading:
-                    out = {
-                        "REPE": self._repeated_by_system,
-                        "REPE2": self._repeated_by_system_two,
-                        "SIGH": self._sigh_by_system,
-                        "ASR":  self._asr_by_system,
-                        "SENT_COMP": self._sentiment_by_system,
-                        "SENT_POS": self._pos_by_system,
-                        "SENT_NEG": self._neg_by_system,
-                        "TURNS": self._turns_by_system,
-                    }.get(att)(system, total, year=year)
-                    print "%12s" % (out),
+                    func = func_map.get(att)
+                    out = func(system, total, year=year)
+                    print self.TEMPLATE % (out),
                 print ""
 
     def _repeated_by_system(self, system, total, year=None):
         count = self._by_system(system, "_have_repeated", year=year)
         if total == 0 and count == 0:
             return ""
-        return "%5d (%.2f)" % (count, float(count)/float(total))
+        return "%5d(%.2f)" % (count, float(count)/float(total))
 
     def _repeated_by_system_two(self, system, total, year=None):
         count = self._by_system(system, "_have_repeated_two", year=year)
         if total == 0 and count == 0:
             return ""
-        return "%5d (%.2f)" % (count, float(count)/float(total))
+        return "%5d(%.2f)" % (count, float(count)/float(total))
 
     def _sigh_by_system(self, system, total, year=None):
         count = self._by_system(system, "_have_sigh", year=year)
@@ -88,28 +93,42 @@ class Analyze(object):
         if count == 0 and len(s) == 0:
             return ""
         ret = sum(s)/float(len(s))
-        return "%12s" % ("%.2f" % ret)
+        return self.TEMPLATE % ("%.2f" % ret)
+
+    def _system_len_by_system(self, system, count, year=None):
+        s = self._value_by_system(system, "_system_len", year=year)
+        if count == 0 and len(s) == 0:
+            return ""
+        ret = sum(s)/float(len(s))
+        return self.TEMPLATE % ("%.1f" % ret)
+
+    def _usr_len_by_system(self, system, count, year=None):
+        s = self._value_by_system(system, "_usr_len", year=year)
+        if count == 0 and len(s) == 0:
+            return ""
+        ret = sum(s)/float(len(s))
+        return self.TEMPLATE % ("%.1f" % ret)
 
     def _sentiment_by_system(self, system, count, year=None):
         s = self._value_by_system(system, "_compound", year=year)
         if count == 0 and len(s) == 0:
             return ""
         ret = sum(s)/float(len(s))
-        return "%12s" % ("%.2f" % ret)
+        return self.TEMPLATE % ("%.2f" % ret)
 
     def _pos_by_system(self, system, count, year=None):
         s = self._value_by_system(system, "_pos", year=year)
         if count == 0 and len(s) == 0:
             return ""
         ret = sum(s)/float(len(s))
-        return "%12s" % ("%.2f" % ret)
+        return self.TEMPLATE % ("%.2f" % ret)
 
     def _neg_by_system(self, system, count, year=None):
         s = self._value_by_system(system, "_neg", year=year)
         if count == 0 and len(s) == 0:
             return ""
         ret = sum(s)/float(len(s))
-        return "%12s" % ("%.2f" % ret)
+        return self.TEMPLATE % ("%.2f" % ret)
 
     def _turns_by_system(self, system, count, year=None):
         """Calculate the average number of turns by system"""
@@ -117,7 +136,7 @@ class Analyze(object):
         if count == 0 and len(s) == 0:
             return ""
         ret = sum(s)/float(len(s))
-        return "%12s" % ("%d" % ret)
+        return self.TEMPLATE % ("%d" % ret)
 
     def analyze(self):
         self._systems = defaultdict(lambda: defaultdict(int))
@@ -136,6 +155,9 @@ class Sentence(object):
         self.transcribed_tokens = []
         (self.transcribed_tokens, self.filtered) = self.filter_bracket(word_tokenize(self.transcribed))
         self.transcribed_sanitized = " ".join(self.transcribed_tokens)
+        self.system_tokens = word_tokenize(self.system)
+        self._system_len = len(self.system_tokens)
+        self._usr_len = len(self.transcribed_tokens)
         # print self.id, self.filtered, self.transcribed_sanitized
 
     def filter_bracket(self, tokens):
@@ -226,9 +248,12 @@ class Task(object):
 
     def analyze(self, parent):
         self._turns = len(self._sentences)
+        self._system_len = sum([s._system_len for s in self._sentences])/self._turns
+        self._usr_len = sum([s._usr_len for s in self._sentences])/self._turns
         self._analyze_repeated_questions()
         self._analyze_sentiment(parent)
         self._analyze_asr()
+
 
 def main(argv=sys.argv):
     filepath = "raw.csv"
