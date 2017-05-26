@@ -1,6 +1,6 @@
 def main():
 
-    extracted_file = "train"
+    extracted_file = "extract.txt"
     n_file = "n_utterances.txt"
     a_file = "a_utterances.txt"
     as_file = "as_utterances.txt"
@@ -18,11 +18,15 @@ def main():
     no_utterances = []
 
     with open(extracted_file, "r") as ef:
-        for line in ef.readlines():
-            split_line = line.split('|')
-            tag = split_line[2].lower()
-            utt = "{0}|{1}".format(split_line[3], split_line[4])
-            if tag == 'n' or tag == '?':
+        input = ef.read()
+        lines = input.split("\n")
+        for i in range(1, len(lines)-1):
+            split_line = lines[i].split('|')
+            tag = split_line[1].lower()
+            utt = "{0}|{1}|{2}|{3}".format(split_line[1], split_line[2], split_line[3], split_line[4])
+            if tag == '' or tag == ' ':
+                continue
+            elif tag == 'n' or tag == '?':
                 n_utterances.append(utt)
             elif tag == 'a':
                 a_utterances.append(utt)
@@ -47,9 +51,10 @@ def main():
 
 
 def output(out_file, utterances):
-    with open(out_file, "w") as out:
+    full_out = "emotions/utterances/" + out_file
+    with open(full_out, "w") as out:
         for utt in utterances:
-            out.write(utt)
+            out.write(utt + '\n')
 
 if __name__ == "__main__":
     main()
